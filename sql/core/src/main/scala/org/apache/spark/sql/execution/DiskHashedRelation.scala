@@ -80,6 +80,14 @@ private[sql] class DiskPartition (
     */
   def insert(row: Row) = {
     /* IMPLEMENT THIS METHOD */
+    if (!inputClosed) {
+      if (measurePartitionSize() < blockSize) {
+        spillPartitionToDisk()
+        data.clear()
+      }
+      data.add(row)
+      closePartition()
+    }
   }
 
   /**
@@ -121,14 +129,27 @@ private[sql] class DiskPartition (
       val chunkSizeIterator: Iterator[Int] = chunkSizes.iterator().asScala
       var byteArray: Array[Byte] = null
 
+//      val bytes: Array[Byte] = getBytesFromList(data)
+//
+//      // This array list stores the sizes of chunks written in order to read them back correctly.
+//      chunkSizes.add(bytes.size)
+
       override def next() = {
         /* IMPLEMENT THIS METHOD */
-        null
+        if (currentIterator.hasNext) {
+          currentIterator.next()
+        } else {
+          null
+        }
       }
 
       override def hasNext() = {
         /* IMPLEMENT THIS METHOD */
-        false
+        if (currentIterator.hasNext || fetchNextChunk()) {
+          true
+        } else {
+          false
+        }
       }
 
       /**
@@ -139,7 +160,13 @@ private[sql] class DiskPartition (
         */
       private[this] def fetchNextChunk(): Boolean = {
         /* IMPLEMENT THIS METHOD */
-        false
+        if (chunkSizeIterator.hasNext) {
+          CS143Utils.getNextChunkBytes(inStream, chunkSizeIterator.next(), byteArray)
+          currentIterator = CS143Utils.getListFromBytes(byteArray).iterator.asScala
+          true
+        } else {
+          false
+        }
       }
     }
   }
@@ -153,6 +180,11 @@ private[sql] class DiskPartition (
     */
   def closeInput() = {
     /* IMPLEMENT THIS METHOD */
+    if (data.size() > 0) {
+      spillPartitionToDisk()
+      data.clear()
+    }
+    outStream.close()
     inputClosed = true
   }
 
@@ -190,6 +222,17 @@ private[sql] object DiskHashedRelation {
               size: Int = 64,
               blockSize: Int = 64000) = {
     /* IMPLEMENT THIS METHOD */
-    null
+    var diskPartitions: Array[DiskPartition] = new Array[DiskPartition](size)
+    for (i <- 0 until diskPartitions.length) {
+      diskPartitions(i) = new DiskPartition("partition" + i.toString(), blockSize)
+    }
+    while (input.hasNext) {
+      var partitionRow: Row = input.next()
+      var key: Int = keyGenerator(partitionRow.hashCode() % size
+      diskPartitions(key).insert(partitionRow)
+    }
+
+    val returnGeneralDiskHashedRelation: GeneralDiskHashedRelation = new GeneralDiskHashedRelation(diskPartitions)
+    returnGeneralDiskHashedRelation
   }
 }
