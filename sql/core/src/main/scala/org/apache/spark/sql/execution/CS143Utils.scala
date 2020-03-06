@@ -129,7 +129,13 @@ object CS143Utils {
     */
   def getUdfFromExpressions(expressions: Seq[Expression]): ScalaUdf = {
     /* IMPLEMENT THIS METHOD */
-    null
+    var udf:ScalaUdf = null
+    for (i <- 0 until expressions.size) {
+      if (expressions(i).isInstanceOf[ScalaUdf]) {
+        udf = expressions(i).asInstanceOf[ScalaUdf]
+      }
+    }
+    udf
   }
 
   /**
