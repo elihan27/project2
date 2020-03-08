@@ -273,12 +273,19 @@ object AggregateIteratorGenerator {
 
       def hasNext() = {
         /* IMPLEMENT THIS METHOD */
-        false
+        input.hasNext
       }
 
       def next() = {
         /* IMPLEMENT THIS METHOD */
-        null
+
+        val (currentGroup, currentInstance) = input.next()
+        val aggregatedResult = new GenericMutableRow(1)
+        aggregatedResult(0) = currentInstance.eval()
+        val concatenate = new JoinedRow(aggregatedResult, currentGroup)
+        postAggregateProjection(concatenate)
+
+
       }
     }
   }
